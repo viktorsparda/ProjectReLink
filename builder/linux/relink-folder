@@ -1,0 +1,13 @@
+#!/bin/sh
+# A ReLink game folder's own launcher on Linux, put in the folder as "relink" by nx2/make_game.py when the packaged builder
+# (linux/relink-linux.sh, RELINK_TOOLS=1) built it. The game is bin/relink; its files (image.bin, romfs, saves, settings,
+# caches, logs) stay in this folder (host/hos_paths.h). Arguments are passed on to the game.
+here=$(dirname "$(readlink -f "$0")")
+cd "$here" || exit 1
+if [ ! -x "$here/bin/relink" ]; then
+    msg="The game is missing from $here/bin. Build it again: linux/relink-linux.sh update \"$here\""
+    command -v zenity >/dev/null 2>&1 && zenity --error --title=ReLink --text="$msg" 2>/dev/null
+    echo "relink: $msg" >&2
+    exit 1
+fi
+exec "$here/bin/relink" "$@"

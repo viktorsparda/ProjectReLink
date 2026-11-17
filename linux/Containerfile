@@ -1,0 +1,30 @@
+# The build environment for ReLink on Linux, for systems whose base cannot take packages (Bazzite, Silverblue, SteamOS):
+# linux/relink-linux.sh builds this image once with podman (or docker) and runs nx2/make_game.py inside it. The game it
+# makes runs on the host itself, not in the container: FFmpeg is linked in statically, the Vulkan back end carries its
+# own C++ runtime, and SDL and Vulkan are the host's (loaded at run time).
+#
+# FEDORA_VERSION should be the host's Fedora (Bazzite's /etc/os-release VERSION_ID): the game is then linked against the
+# same C library the host has. relink-linux.sh passes it.
+ARG FEDORA_VERSION=42
+ARG BASE_IMAGE=registry.fedoraproject.org/fedora
+FROM ${BASE_IMAGE}:${FEDORA_VERSION}
+
+RUN dnf -y install --setopt=install_weak_deps=False \
+        clang lld llvm compiler-rt binutils glibc-devel libstdc++-devel libstdc++-static \
+        git make nasm meson ninja-build pkgconf-pkg-config findutils which xz \
+        python3 python3-pip \
+    && dnf clean all
+
+COPY build-deps.sh /tmp/build-deps.sh
+RUN bash /tmp/build-deps.sh /opt/relink-deps && rm /tmp/build-deps.sh
+
+# (the Python packages the Windows package carries, docs/releasing.md; Pillow for the game's icon)
+RUN python3 -m venv /opt/relink-py \
+    && /opt/relink-py/bin/pip install --no-cache-dir lz4 numpy capstone zstandard pillow
+
+ENV PATH=/opt/relink-py/bin:$PATH \
+    RELINK_FFMPEG=/opt/relink-deps/ffmpeg \
+    RX_CPM=/opt/relink-deps/cpm \
+    RELINK_CONTAINER=1
+LABEL org.opencontainers.image.title="relink-builder" \
+      org.opencontainers.image.description="Builds Project ReLink for Linux from the player's own game files"

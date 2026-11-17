@@ -3,7 +3,8 @@
 <a href="https://recomplauncher.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
 
 **Zelda OOT Remake Recomp.** An unofficial static recompilation of *The Legend of Zelda: Ocarina of Time* (the Switch 2
-remake) into a native Windows game: the game's code is translated to PC code and compiled on your machine, with no emulator.
+remake) into a native Windows or Linux game: the game's code is translated to PC code and compiled on your machine, with no
+emulator. **On Linux (Bazzite, SteamOS, Fedora and others), see [Linux](#linux).**
 
 [Français plus bas](#français)
 
@@ -74,6 +75,19 @@ folder, from the game files the folder keeps: your `.nup` is not needed again. S
 - The game: the folder you choose (`Games\ReLink` in your user folder by default). Your copy is never changed.
 - ReLink itself: `%LOCALAPPDATA%\ReLink`. The build files (about 4 GB) are deleted once the game is ready.
 - To uninstall: delete the game folder, `%LOCALAPPDATA%\ReLink` and the shortcuts.
+
+## Linux
+
+ReLink builds a native Linux game too (no Wine or Proton), with `linux/relink-linux.sh`. On Bazzite and other immutable
+systems it builds inside a podman container, so nothing is installed on the system, and the game runs on the system itself:
+
+```bash
+git clone --depth 1 https://github.com/pixl27/ProjectReLink ~/ReLink-src
+~/ReLink-src/linux/relink-linux.sh install --game ~/Downloads/<your file>.nup
+```
+
+The game goes to `~/Games/ReLink` with a menu entry, which Steam's **Add a Non-Steam Game** lists for Gaming Mode. Updating,
+other distributions, what the PC needs and the settings: [docs/linux.md](docs/linux.md).
 
 ## Settings
 

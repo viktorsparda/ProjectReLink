@@ -501,7 +501,8 @@ def check_linux_compiler():
     import toolchain
     cc = toolchain.find("clang")
     if not os.path.isfile(cc):
-        fail("No C compiler was found. Install clang (and lld), or use the ReLink AppImage, which brings its own.")
+        fail("No C compiler was found. Install clang (and lld), or build with linux/relink-linux.sh, whose container brings its own "
+             "(docs/linux.md).")
     sysroot = os.environ.get("RELINK_SYSROOT")
     with tempfile.TemporaryDirectory() as d:
         src = os.path.join(d, "t.c")
@@ -1492,8 +1493,8 @@ def main(a=None):
             os.makedirs(os.path.dirname(os.path.join(game_dir, n)), exist_ok=True)
             staged.append((src, os.path.join(game_dir, n)))
     staged.append((os.path.join(work, "sa", "image", "image.bin"), os.path.join(out, "image.bin")))
-    if launcher:
-        staged.append((launcher, os.path.join(out, "ReLink.exe")))   # (the folder's small launcher; the game is bin\\relink-game.exe)
+    if launcher:   # (the folder's small launcher; the game is bin\\relink-game.exe, or bin/relink on Linux)
+        staged.append((launcher, os.path.join(out, "relink" if LINUX else "ReLink.exe")))
     for src, dst in staged:
         try:
             if os.path.exists(dst + ".new"):
@@ -1522,7 +1523,7 @@ def main(a=None):
     exefs_mods.write_report(out, patched, lift_notes)
     if launcher:   # (a folder built before the launcher: its libraries left the folder for bin\; relink is the launcher now)
         stale = [] if LINUX else sorted(f for f in os.listdir(out) if f.endswith(".dll") and f.startswith(("av", "sw")))
-        for n in BESIDE + stale + ["relink-game.map", "relink-game.exe"]:
+        for n in [n for n in BESIDE if not (LINUX and n == "relink")] + stale + ["relink-game.map", "relink-game.exe"]:   # (linux: relink is the launcher now)
             try:
                 if os.path.isfile(os.path.join(out, n)):
                     os.remove(os.path.join(out, n))

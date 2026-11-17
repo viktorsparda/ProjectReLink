@@ -12,6 +12,7 @@
 #include <iterator>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <cstdio>
 #include <cstring>

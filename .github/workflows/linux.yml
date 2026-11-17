@@ -1,0 +1,73 @@
+# Linux: what can be checked without game data. The Vulkan back end (relink_vk.so) is compiled and linked as a player's
+# build does (nx2/build.py, RX_VK_ONLY: no lift, no game), with the FFmpeg and headers linux/build-deps.sh makes; its
+# undefined symbols are checked by build.py itself. The Linux scripts are linted and the Linux tests run.
+# The builder container (linux/Containerfile) is built on a version tag and on manual runs, as players' podman builds it.
+name: Linux
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  vulkan:
+    name: Vulkan back end and tests (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld llvm nasm meson ninja-build pkg-config shellcheck
+          python3 -m pip install --user capstone numpy zstandard lz4 pillow
+      - name: Lint the Linux scripts
+        run: shellcheck -S warning linux/relink-linux.sh linux/build-deps.sh builder/linux/relink-folder
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/deps
+          key: relink-linux-deps-${{ hashFiles('linux/build-deps.sh') }}
+      - name: FFmpeg and the Vulkan headers (linux/build-deps.sh)
+        run: test -f "$RUNNER_TEMP/deps/ffmpeg/lib/libavcodec.a" || bash linux/build-deps.sh "$RUNNER_TEMP/deps"
+      - name: relink_vk.so
+        env:
+          RX_VK_ONLY: '1'
+          RX_RELEASE: '1'
+        run: |
+          OOT_WORK="$RUNNER_TEMP/vk-work" RX_CPM="$RUNNER_TEMP/deps/cpm" \
+            python3 -I nx2/build.py --standalone --jobs "$(nproc)"
+          ls -l "$RUNNER_TEMP/vk-work/sa/build/relink_vk.so"
+      - name: Linux tests
+        run: |
+          for t in nx2/test_vk_linux_presentation.py nx2/test_radv_submit_thread.py nx2/test_nup_paths.py \
+                   nx2/test_exefs_mods.py nx2/test_version.py; do
+            echo "== $t"; python3 -I "$t"
+          done
+
+  container:
+    name: Builder container (Fedora)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: podman build
+        run: podman build --build-arg FEDORA_VERSION=43 -t relink-builder -f linux/Containerfile linux
+      - name: The toolchain inside
+        run: |
+          podman run --rm relink-builder sh -c 'clang --version | head -1; ld.lld --version; python3 -c "import capstone, numpy, zstandard, lz4, PIL; print(\"python ok\")"; ls "$RELINK_FFMPEG/lib" "$RX_CPM"'

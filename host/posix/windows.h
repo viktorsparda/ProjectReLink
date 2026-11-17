@@ -513,6 +513,7 @@ static inline void *RtlVirtualUnwind(DWORD type, DWORD64 base, DWORD64 pc, PRUNT
 #define VK_F10 0x79
 #define VK_F11 0x7A
 #define VK_F12 0x7B
+#define VK_SCROLL 0x91
 #define VK_LSHIFT 0xA0
 #define VK_RSHIFT 0xA1
 #define VK_LCONTROL 0xA2
