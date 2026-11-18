@@ -13,7 +13,8 @@
 #                 Vulkan back end itself)
 #   usr/lib/relink_vk.so   the Vulkan back end, built here for x86-64-v3 (RELINK_VK_PREBUILT): a player's build skips it
 #   usr/tools     ReLink's sources and scripts (git's, not the ignored files) (nx2/make_game.py's ROOT), with the latest release's play profile
-#                 in usr/tools/work when it can be downloaded, liba64emit.so built, and VERSION
+#                 in usr/tools/work when it can be downloaded, liba64emit.so and zbic.so built (nothing is compiled
+#                 on first use in the read-only AppImage), and VERSION
 #
 #   scripts/linux/appimage.sh [out folder]      (default dist/; writes ReLink-x86_64.AppImage and relink-linux.txt)
 #
@@ -175,6 +176,10 @@ done
 echo "$TAG" > "$T/VERSION"
 export PATH=$LL/bin:$APPDIR/usr/python/bin:$PATH
 (cd "$T/third_party/a64-kit/lift" && "$PY" -I build_emit.py)   # (the lift's emitter, read-only once packed)
+# (the .nup reader's ZBIC decompressor, nx2/zbic.py: built on first use otherwise, which a player's system cannot do: no C
+# library headers on Bazzite, and the AppImage is read-only)
+"$PY" -I -c "import sys; sys.path.insert(0, '$T/nx2'); import zbic; zbic.lib(); print('zbic:', zbic.DLL)"
+test -f "$T/third_party/zbic/zbic.so"
 if [[ ${RELINK_PROFILE:-1} != 0 ]]; then
     list=$TMP/setup.txt
     if "$PY" -I "$ROOT/scripts/release_parts.py" previous "$list" --repo pixl27/ProjectReLink --list-name relink-setup.txt --skip-tag "$TAG" &&
