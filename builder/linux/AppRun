@@ -1,0 +1,9 @@
+#!/bin/sh
+# The AppImage's entry point (scripts/linux/appimage.sh): ReLink's launcher (builder/linux/launcher.py) on the bundled Python.
+# No arguments: its window. Arguments: the same as linux/relink-linux.sh (install, check, update, play, shortcut, doctor), and
+# --update <folder> --tag <tag> from the game's own update offer (host/hos_update.c).
+HERE=$(dirname "$(readlink -f "$0")")
+export RELINK_APPDIR="$HERE"
+# (the PATH the game gets back when the launcher starts it: the bundled tools stay the builder's)
+[ -n "${RELINK_ORIG_PATH:-}" ] || export RELINK_ORIG_PATH="${PATH:-/usr/local/bin:/usr/bin:/bin}"
+exec "$HERE/usr/python/bin/python3" -I -u -X utf8 "$HERE/usr/tools/builder/linux/launcher.py" "$@"

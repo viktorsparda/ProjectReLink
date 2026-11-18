@@ -11,9 +11,12 @@
 #   bash linux/build-deps.sh [prefix]
 #
 # Needs git, a C compiler, make, nasm, meson, ninja and pkg-config. Everything is fetched with git (tags), nothing else.
+# CC: the C compiler (default cc); scripts/linux/appimage.sh passes the clang it bundles.
 set -euo pipefail
 
 PREFIX=${1:-/opt/relink-deps}
+CC=${CC:-cc}
+export CC
 JOBS=${JOBS:-$(nproc)}
 DAV1D_TAG=1.5.1
 FFMPEG_TAG=n7.1.1
@@ -48,7 +51,7 @@ say "FFmpeg $FFMPEG_TAG (static, VP8/VP9/AV1 decoders only) -> $FF"
 clone https://github.com/FFmpeg/FFmpeg "$FFMPEG_TAG" "$SRC/ffmpeg"
 (
     cd "$SRC/ffmpeg"
-    PKG_CONFIG_PATH="$FF/lib/pkgconfig" ./configure --prefix="$FF" --libdir="$FF/lib" \
+    PKG_CONFIG_PATH="$FF/lib/pkgconfig" ./configure --cc="$CC" --prefix="$FF" --libdir="$FF/lib" \
         --enable-static --disable-shared --enable-pic --disable-autodetect --disable-programs --disable-doc \
         --disable-network --disable-everything --disable-avdevice --disable-avformat --disable-avfilter \
         --enable-avcodec --enable-swscale --enable-swresample \

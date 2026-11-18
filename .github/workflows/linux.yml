@@ -2,6 +2,8 @@
 # build does (nx2/build.py, RX_VK_ONLY: no lift, no game), with the FFmpeg and headers linux/build-deps.sh makes; its
 # undefined symbols are checked by build.py itself. The Linux scripts are linted and the Linux tests run.
 # The builder container (linux/Containerfile) is built on a version tag and on manual runs, as players' podman builds it.
+# The AppImage (scripts/linux/appimage.sh, in an ubuntu:22.04 container) is built on main, tags and manual runs, kept as a
+# workflow artifact, and on a version tag attached to the tag's release with relink-linux.txt (scripts/release_upload.sh).
 name: Linux
 
 on:
@@ -34,7 +36,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang lld llvm nasm meson ninja-build pkg-config shellcheck
           python3 -m pip install --user capstone numpy zstandard lz4 pillow
       - name: Lint the Linux scripts
-        run: shellcheck -S warning linux/relink-linux.sh linux/build-deps.sh builder/linux/relink-folder
+        run: |
+          shellcheck -S warning linux/relink-linux.sh linux/build-deps.sh builder/linux/relink-folder builder/linux/AppRun \
+            scripts/linux/appimage.sh
+          python3 -m py_compile builder/linux/launcher.py
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/deps
@@ -71,3 +76,39 @@ jobs:
       - name: The toolchain inside
         run: |
           podman run --rm relink-builder sh -c 'clang --version | head -1; ld.lld --version; python3 -c "import capstone, numpy, zstandard, lz4, PIL; print(\"python ok\")"; ls "$RELINK_FFMPEG/lib" "$RX_CPM"'
+
+  appimage:
+    name: ReLink-x86_64.AppImage
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # (the version is git describe's)
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build (ubuntu:22.04 container)
+        env:
+          RELINK_ENGINE: docker
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/linux/appimage.sh dist
+      - name: Smoke test
+        run: |
+          sudo chown -R "$(id -u)" dist
+          dist/ReLink-x86_64.AppImage --appimage-extract-and-run doctor
+          dist/ReLink-x86_64.AppImage --appimage-extract-and-run --help | head -3
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ReLink-linux
+          path: dist/
+          if-no-files-found: error
+      - name: To the tag's release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash scripts/release_upload.sh "$GITHUB_REF_NAME" dist/ReLink-x86_64.AppImage dist/relink-linux.txt

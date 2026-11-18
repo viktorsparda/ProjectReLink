@@ -62,6 +62,10 @@ POSIX = os.path.join(kit.HERE, "..", "host", "posix")
 SYSROOT = os.environ.get("RELINK_SYSROOT", "")
 EXE = "relink" if LINUX else "relink-game.exe"
 VK_LIB = "relink_vk.so" if LINUX else "relink_vk.dll"
+# (linux) RELINK_LIBCXX=<folder with libc++.a>: the Vulkan back end on LLVM's C++ library, linked in, instead of the system's
+# libstdc++. The AppImage (scripts/linux/appimage.sh) sets it: its sysroot's libstdc++ (Ubuntu 22.04's, GCC 12) has no
+# <format>, which the shader recompiler needs; libc++ is what the Windows build (llvm-mingw) uses too
+LIBCXX = os.environ.get("RELINK_LIBCXX", "") if LINUX else ""
 
 
 def check_vk_symbols(so):
@@ -904,7 +908,7 @@ def main():
             with open(f, "rb") as src:
                 stamp.update(os.path.relpath(f, vk).replace("\\", "/").encode() + src.read().replace(bytes((13, 10)), bytes((10,))))
         shader_stamp = "-DRELINK_SHADER_STAMP=0x%sull" % stamp.hexdigest()[:16]
-        vflags = target() + CPU + (["-fPIC", "-I" + POSIX, "-D_GNU_SOURCE"] if LINUX else []) + [   # (relink: the replay is the frame's limit now)
+        vflags = target() + CPU + (["-fPIC", "-I" + POSIX, "-D_GNU_SOURCE"] if LINUX else []) + (["-stdlib=libc++"] if LIBCXX else []) + [   # (relink: the replay is the frame's limit now)
             # (what the code takes for granted, which newer C++ libraries bring in by themselves and older ones do not: issue 48)
             "-include", "algorithm", "-include", "cstdio", "-include", "cstdlib", "-include", "cstring", "-include", "functional",
             "-include", "string", "-include", "vector",
@@ -1125,7 +1129,7 @@ def main():
         if LINUX:   # (its C++ runtime inside: the game folder runs where the AppImage's sysroot is older than the system)
             link = [toolchain.need(toolchain.find("clang++"))] + target() + [
                 "-fuse-ld=lld", "-shared", "-o", vdll, "-Wl,-Map=" + vdll + ".map", "-Wl,-Bsymbolic", "-Wl,--gc-sections",
-                "-static-libstdc++", "-static-libgcc", "@" + vrsp] + \
+                "-static-libstdc++", "-static-libgcc", "@" + vrsp] + (["-stdlib=libc++", "-L" + LIBCXX] if LIBCXX else []) + \
                 ([ngx_library(NGX_SDK, True)] if NGX_SDK else []) + ["-ldl", "-lpthread", "-lm"]
         else:
             link = [cc] + toolchain.native_target() + toolchain.native_link() + \

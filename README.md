@@ -78,16 +78,11 @@ folder, from the game files the folder keeps: your `.nup` is not needed again. S
 
 ## Linux
 
-ReLink builds a native Linux game too (no Wine or Proton), with `linux/relink-linux.sh`. On Bazzite and other immutable
-systems it builds inside a podman container, so nothing is installed on the system, and the game runs on the system itself:
-
-```bash
-git clone --depth 1 https://github.com/pixl27/ProjectReLink ~/ReLink-src
-~/ReLink-src/linux/relink-linux.sh install --game ~/Downloads/<your file>.nup
-```
-
-The game goes to `~/Games/ReLink` with a menu entry, which Steam's **Add a Non-Steam Game** lists for Gaming Mode. Updating,
-other distributions, what the PC needs and the settings: [docs/linux.md](docs/linux.md).
+ReLink builds a native Linux game too (no Wine or Proton). Download `ReLink-x86_64.AppImage` from the
+[latest release](https://github.com/pixl27/ProjectReLink/releases/latest), make it executable and open it: it brings its own
+compiler and Python, works the same on Bazzite, SteamOS, Fedora, Ubuntu or Arch, and installs nothing on the system. Pick
+your copy, press **Install**, then **Play**. The game gets a menu entry, which Steam's **Add a Non-Steam Game** lists for
+Gaming Mode. Updating, building from source, what the PC needs and the settings: [docs/linux.md](docs/linux.md).
 
 ## Settings
 

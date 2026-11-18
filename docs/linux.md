@@ -4,48 +4,42 @@ ReLink builds a native Linux game from your own copy, the same way the Windows v
 and compiled on your PC, with no emulator and no Wine or Proton. The result is a folder with `bin/relink` (the game),
 `relink_vk.so` (its Vulkan renderer) and the game's files, which runs directly on your system.
 
-There is no graphical launcher on Linux yet: `linux/relink-linux.sh` does what the Windows launcher does, from a terminal,
-and the game's own **Insert** / **F1** menu has every setting.
-
 **The game version you need** is the same as on Windows (program `0400486024DEC000`, update v131072, build `e0f3ccfa`), as a
 `.nup` file or as its `romfs` and `exefs` folders.
 
-## On Bazzite (and other immutable systems)
+## Install and play (any distribution: Bazzite, SteamOS, Fedora, Ubuntu, Arch…)
 
-Bazzite's base system cannot take packages, so ReLink builds inside a container with **podman**, which Bazzite already has.
-Nothing is installed on your system: the container holds clang, Python and the libraries the build needs, and the finished
-game runs on Bazzite itself.
-
-1. Open **Konsole** (KDE) or **Terminal** (GNOME). In Gaming Mode, switch to Desktop Mode first.
-2. Get ReLink's sources (a release tag is best, it lets the game offer updates):
-
-   ```bash
-   git clone --depth 1 --branch <latest release tag, e.g. v0.7.9.1> https://github.com/pixl27/ProjectReLink ~/ReLink-src
-   ```
-
-3. Check your copy of the game (optional, quick):
+1. Download `ReLink-x86_64.AppImage` from the [latest release](https://github.com/pixl27/ProjectReLink/releases/latest).
+   It brings everything the build needs (its own compiler, Python and libraries, about 210 MB): nothing to install, and
+   nothing is installed on your system. On a Steam Deck or Bazzite in Gaming Mode, switch to Desktop Mode first.
+2. Make it executable and open it: right-click it, **Properties → Permissions → Is executable** (KDE) or **Allow executing
+   file as program** (GNOME), then double-click it. From a terminal:
 
    ```bash
-   ~/ReLink-src/linux/relink-linux.sh check --game ~/Downloads/<your file>.nup
+   chmod +x ReLink-x86_64.AppImage
+   ./ReLink-x86_64.AppImage
    ```
 
-4. Build the game:
-
-   ```bash
-   ~/ReLink-src/linux/relink-linux.sh install --game ~/Downloads/<your file>.nup
-   ```
-
-   The first time, it prepares the build container (5 to 10 minutes, about 2 GB). Then it builds the game into
-   `~/Games/ReLink` (`--out <folder>` to choose another): 10 to 45 minutes depending on your CPU. The whole log goes to
-   `relink_build_log.txt` in the game folder.
-
-5. Play: **Project ReLink** is now in your application menu. Or from a terminal:
-
-   ```bash
-   ~/Games/ReLink/relink
-   ```
+3. Pick your copy of the game. The window looks for `.nup` files in Downloads, Desktop and Documents; **File…** or
+   **Folder…** (the folder holding `exefs` and `romfs`) choose another. It checks the copy and says whether it is the right
+   version.
+4. Choose the game folder (`~/Games/ReLink` by default) and the language, and press **Install**: 10 to 45 minutes depending
+   on your CPU. **Show details** shows the build's output; it is also saved as `relink_build_log.txt` in the game folder.
+5. Press **Play**. **Project ReLink** is also in your application menu from then on; it starts the game directly.
 
 The first start prepares the shaders and pipelines once (about a quarter of an hour), with a progress screen, as on Windows.
+The game's own **Insert** / **F1** menu has every setting.
+
+The AppImage also works from a terminal, with no window:
+
+```bash
+./ReLink-x86_64.AppImage install --game ~/Downloads/<your file>.nup [--out <folder>] [--language fr] [--jobs 4]
+./ReLink-x86_64.AppImage check --game ~/Downloads/<your file>.nup
+./ReLink-x86_64.AppImage update [<game folder>]
+./ReLink-x86_64.AppImage doctor
+```
+
+If it says FUSE is missing (some minimal systems), run it with `--appimage-extract-and-run` first, or install `fuse3`.
 
 ### In Steam and Gaming Mode
 
@@ -56,21 +50,29 @@ Linux game, not one for Proton.
 Controllers work through SDL (Bazzite's own): Xbox pads, DualSense, DualShock 4, Switch Pro and the Steam Deck's controls.
 With Steam Input on, Steam presents them as an Xbox pad, which works too.
 
-## On other distributions
+## Building from source, or without the AppImage
 
-The same script works anywhere. It uses podman or docker when it finds one and the system has no compiler; otherwise, or with
-`--native`, it builds with the system's own tools. For a native build install:
+`linux/relink-linux.sh` builds from a checkout of this repository. On systems whose base cannot take packages (Bazzite,
+Silverblue, SteamOS) it builds inside a **podman** container (`linux/Containerfile`: Fedora, the host's version, with clang,
+Python and a static FFmpeg), so nothing is installed on the system; the finished game runs on the system itself.
+
+```bash
+git clone --depth 1 --branch <latest release tag> https://github.com/pixl27/ProjectReLink ~/ReLink-src
+~/ReLink-src/linux/relink-linux.sh install --game ~/Downloads/<your file>.nup
+```
+
+The first time, it prepares the container (5 to 10 minutes, about 2 GB). `update`, `play`, `check`, `shortcut` and `doctor`
+work as the AppImage's. With `--native` it uses the system's own tools instead; install:
 
 - **Fedora**: `sudo dnf install clang lld llvm git make nasm meson ninja-build python3-pip libstdc++-static`
 - **Debian, Ubuntu**: `sudo apt install clang lld llvm git make nasm meson ninja-build python3-pip`
 - **Arch**: `sudo pacman -S clang lld llvm git make nasm meson ninja python-pip`
 
-and the Python packages `capstone numpy zstandard lz4 pillow` (`pip install --user ...`, or your distribution's packages).
-The first native build makes FFmpeg (only the video decoders the game needs) and fetches the Vulkan headers into
-`~/.local/share/relink/deps`, once (`linux/build-deps.sh`).
+and the Python packages `capstone numpy zstandard lz4 pillow`. The first native build makes FFmpeg (only the video decoders
+the game needs) and fetches the Vulkan headers into `~/.local/share/relink/deps`, once (`linux/build-deps.sh`).
 
-Docker instead of podman: `RELINK_ENGINE=docker`. On a non-Fedora system the container is Fedora 41; if your C library is
-older than its (glibc 2.40), use `--native`, or `RELINK_FEDORA=<older version>`.
+The AppImage itself is made by `scripts/linux/appimage.sh` (in an Ubuntu 22.04 container), which the Linux workflow runs for
+every release.
 
 ## What your PC needs
 
@@ -84,14 +86,13 @@ older than its (glibc 2.40), use `--native`, or `RELINK_FEDORA=<older version>`.
 
 ## Updating
 
-```bash
-~/ReLink-src/linux/relink-linux.sh update ~/Games/ReLink
-```
+When a new release is out, the game offers the update at start, as on Windows (with `zenity` installed, which asks the
+question): **Update now** closes the game, downloads the new AppImage into `~/.local/share/relink/builder` and builds the
+folder again in its window. Or download the new AppImage yourself, open it and press **Update**. Either way the folder is
+built again from the game files it keeps (your `.nup` is not needed again), and saves (`user`), settings and mods stay.
 
-When the sources are a git checkout without local changes, this first moves them to the latest release tag, then builds the
-folder again from the game files it keeps (your `.nup` is not needed again). Saves (`user`), settings and mods stay. A game
-folder built from a release tag also offers the update itself at start, as on Windows (when `zenity` is installed, which
-asks the question).
+From a checkout: `linux/relink-linux.sh update ~/Games/ReLink` first moves the sources to the latest release tag (when they
+have no local changes), then builds the folder again.
 
 ## Settings and files
 
@@ -106,8 +107,9 @@ Vulkan backend), which ReLink does not ship on Linux: put one in the game folder
 
 ## Uninstalling
 
-Delete the game folder, `~/.cache/relink-builder` (the build cache), `~/.local/share/relink`,
-`~/.local/share/applications/relink.desktop`, and the container image (`podman rmi` the `localhost/relink-builder` images).
+Delete the game folder, the AppImage, `~/.cache/relink-builder` (the build cache), `~/.local/share/relink`,
+`~/.config/relink` and `~/.local/share/applications/relink.desktop`. A build from source also leaves its container image
+(`podman rmi` the `localhost/relink-builder` images).
 
 ## Problems
 
