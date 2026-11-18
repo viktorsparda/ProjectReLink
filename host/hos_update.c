@@ -3,6 +3,23 @@
    that made the folder (relink_version.txt, written by nx2/make_game.py) with --update: it downloads the new release and builds the
    folder again from the game files the folder keeps, and the game closes. A folder with no relink_version.txt (built from the
    repository, or before updates came in) is never asked about. RELINK_NO_UPDATE_CHECK=1 (relink_env.txt) turns it off */
+#include <ctype.h>
+#include <string.h>
+
+/* (relink) the folder was built from commits after that release: git describe's "<tag>-<n>-g<hash>" (a build from the
+   repository, or a test AppImage). It is newer than the release, not older: no offer. A release candidate's next release
+   ("v1.0-rc.1" then "v1.0") is still offered: its suffix is not git describe's */
+static int built_after(const char *have, const char *tag) {
+    const size_t n = strlen(tag);
+    if (strncmp(have, tag, n) || have[n] != '-') return 0;
+    const char *p = have + n + 1;
+    if (!isdigit((unsigned char)*p)) return 0;
+    while (isdigit((unsigned char)*p)) p++;
+    if (p[0] != '-' || p[1] != 'g' || !isxdigit((unsigned char)p[2])) return 0;
+    for (p += 2; *p; p++)
+        if (!isxdigit((unsigned char)*p)) return *p == '-' && !strcmp(p, "-dirty");
+    return 1;
+}
 #ifdef _WIN32
 #include "hos_paths.h"
 #include <windows.h>
@@ -96,7 +113,7 @@ void hos_update_check(void) {
         return;
     }
     fprintf(stderr, "update: this folder is %s, the latest release is %s\n", have, tag);
-    if (!strcmp(tag, have) || !strcmp(tag, skipped)) return;
+    if (!strcmp(tag, have) || !strcmp(tag, skipped) || built_after(have, tag)) return;
 
     wchar_t wtag[128], whave[128], wbuilder[MAX_PATH], text[2048];
     MultiByteToWideChar(CP_UTF8, 0, tag, -1, wtag, 128);
@@ -265,7 +282,7 @@ void hos_update_check(void) {
         return;
     }
     fprintf(stderr, "update: this folder is %s, the latest release is %s\n", have, tag);
-    if (!strcmp(tag, have) || !strcmp(tag, skipped)) return;
+    if (!strcmp(tag, have) || !strcmp(tag, skipped) || built_after(have, tag)) return;
     snprintf(path, sizeof path, "%srelink_version.txt", dir);
     const int has_builder = installed_builder(builder, sizeof builder) ||
                             (read_value(path, "builder", builder, sizeof builder) && access(builder, X_OK) == 0);
